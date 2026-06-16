@@ -9,7 +9,12 @@ python3 build_wordlist.py --build-dir build
 
 echo "[2/3] combining core + names (+ optional personal-words.txt)"
 cat build/core-words.txt build/names.txt > build/combined-words.txt
-[ -f personal-words.txt ] && cat personal-words.txt >> build/combined-words.txt
+if [ -f personal-words.txt ]; then
+  cat personal-words.txt >> build/combined-words.txt
+else
+  echo "  NOTE: no personal-words.txt found — building WITHOUT any coinages/private words." >&2
+  echo "        (copy personal-words.txt.example to personal-words.txt to include them.)" >&2
+fi
 
 echo "[3/3] serializing .bdic"
 python3 bdic.py --build build/combined-words.txt en-US-ems.bdic

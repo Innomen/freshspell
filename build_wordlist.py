@@ -29,7 +29,9 @@ BAD_GLOSS = re.compile(
 BAD_TAGS = {"misspelling", "eye-dialect", "obsolete", "nonstandard"}
 
 def keep_token(w):
-    return isinstance(w, str) and 1 < len(w) <= 40 and TOKEN.match(w) and not w.endswith(".")
+    # NOTE: lower bound is 1, not 2 — single-letter words ("a", "I", "O") are real.
+    # An earlier `1 < len(w)` silently dropped them, so "a" read as a misspelling.
+    return isinstance(w, str) and 1 <= len(w) <= 40 and TOKEN.match(w) and not w.endswith(".")
 
 def is_bad_entry(o):
     """True if every sense marks this as a misspelling/eye-dialect/obsolete spelling."""
