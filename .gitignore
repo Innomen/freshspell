@@ -1,0 +1,11 @@
+# build artifacts and large source downloads
+build/
+*.bdic
+*.bdic.stock-backup
+english-words.jsonl.gz
+combined-words.txt
+__pycache__/
+*.pyc
+
+# your own coinages stay local; copy personal-words.txt.example to start
+personal-words.txt
