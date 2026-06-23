@@ -50,6 +50,34 @@ python3 install.py --restore
 The installer is idempotent. If the browser later re-downloads a stock dictionary after a
 version bump, run `install.py` again to re-apply (it doubles as the repatch tool).
 
+## Suggestions (recognition is only half the job)
+
+A `.bdic` is two independent things: a word trie (*is this a word?*) and an **aff section**
+(Hunspell's `TRY` string + `REP` table) that drives *correction suggestions*. A flat wordlist
+gives an empty aff — words get recognized but the browser can't suggest a fix for a typo
+(`intrests` never offers `interests`, because with no `TRY` string Hunspell generates no
+candidates). `build.sh` therefore **carries the aff section forward from the browser's stock
+dictionary** automatically (`bdic.py --aff-from`), so suggestions keep working.
+
+A second, subtler issue: a *comprehensive* dictionary makes suggestions *worse*, because the
+browser suggests corrections by mutating your typo and keeping mutations that are real words —
+and with a million words, obscure entries (`hydroxypropiophenone`...) crowd out the obvious fix,
+while some typos are themselves rare words and never flag. The fix is Hunspell's `NOSUGGEST`
+flag: a word stays **recognized** but is never **offered** (stock browsers already do this for
+profanity). `build_tiered.py` tiers the dictionary on word frequency:
+
+```sh
+python3 build_tiered.py --top-n 60000 --added my-custom-dictionary.txt
+python3 install.py
+```
+
+Common words (top-N by `wordfreq`) plus your own `personal-words.txt` and any `--added` list stay
+suggestable; the rare tail is recognized-but-NOSUGGEST. (Requires `pip install wordfreq`. The
+NOSUGGEST flag-group is located dynamically in the carried-over aff, so it survives browser
+version bumps.) **Ceiling:** Hunspell can't *rank* suggestions by frequency — that needs a
+frequency-native engine (AOSP/keyboard dictionaries), not a browser speller — so tiering cleans
+the candidate pool but can't reorder within it.
+
 ## bdic.py: a standalone Chromium .bdic reader and writer
 
 There was no maintained pure-Python writer for Chromium's `.bdic` format. The only public

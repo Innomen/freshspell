@@ -206,8 +206,18 @@ def build_aff_empty(comment=b""):
     struct.pack_into("<IIII", out, 0, ag, ar, rep, oth)
     return bytes(out)
 
-def write_bdict(words):
-    aff_bytes = build_aff_empty()
+def extract_aff(bdic_path):
+    """Pull the aff section (affix groups + rules + REP table + TRY/other) out of an
+    existing .bdic. Used to carry a real suggestion-supporting aff section forward when
+    rebuilding from a flat wordlist — a flat list alone yields an empty aff, which kills
+    Hunspell's correction suggestions (no TRY string => no edit-distance candidates)."""
+    d = open(bdic_path, "rb").read()
+    _, _, aff_off, dic_off, _ = parse_header(d)
+    return d[aff_off:dic_off]
+
+def write_bdict(words, aff_bytes=None):
+    if aff_bytes is None:
+        aff_bytes = build_aff_empty()
     aff_off = HEADER_SIZE
     dic_off = aff_off + len(aff_bytes)
     dic_bytes = serialize_dic(words, base_offset=dic_off)   # LOOKUP32 needs the file-absolute base
@@ -288,6 +298,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--validate", metavar="BDIC")
     ap.add_argument("--build", nargs=2, metavar=("WORDLIST", "OUT"))
+    ap.add_argument("--aff-from", metavar="BDIC",
+                    help="carry the aff section (TRY string + REP table => real suggestions) "
+                         "from this .bdic instead of writing an empty one")
     args = ap.parse_args()
 
     if args.validate:
@@ -322,7 +335,8 @@ def main():
                 continue
             seen.add(w); words.append((w, [0]))
         words.sort(key=lambda x: x[0])
-        blob = write_bdict(words)
+        aff_bytes = extract_aff(args.aff_from) if args.aff_from else None
+        blob = write_bdict(words, aff_bytes)
         open(out, "wb").write(blob)
         # self-check: read it back
         _, _, ao, do, dg = parse_header(blob)

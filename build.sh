@@ -17,7 +17,27 @@ else
 fi
 
 echo "[3/3] serializing .bdic"
-python3 bdic.py --build build/combined-words.txt en-US-ems.bdic
+# Carry a real aff section (TRY string + REP table) so spellcheck SUGGESTIONS work.
+# A flat wordlist alone yields an empty aff -> Brave recognizes words but can't suggest
+# corrections for typos (no TRY string => no edit-distance candidates). We borrow the aff
+# from the stock dict the browser shipped (the pristine backup install.py made, or the live
+# stock dict). No stock found -> build anyway, but warn that suggestions will be degraded.
+STOCK=""
+for cand in \
+  "$HOME/.config/BraveSoftware/Brave-Browser/Dictionaries/en-US-10-1.bdic.stock-backup" \
+  /usr/lib*/chromium*/en-US-*.bdic \
+  "$HOME/.config/google-chrome/Default/Dictionaries/en-US-*.bdic.stock-backup"; do
+  if [ -f "$cand" ]; then STOCK="$cand"; break; fi
+done
+if [ -n "$STOCK" ]; then
+  echo "  carrying aff (TRY+REP suggestion data) from: $STOCK"
+  python3 bdic.py --build build/combined-words.txt en-US-ems.bdic --aff-from "$STOCK"
+else
+  echo "  WARN: no stock .bdic found to borrow an aff section from — building with an EMPTY" >&2
+  echo "        aff. Words will be RECOGNIZED but typo SUGGESTIONS will be poor. Install the" >&2
+  echo "        browser's default dict first, then rebuild." >&2
+  python3 bdic.py --build build/combined-words.txt en-US-ems.bdic
+fi
 
 echo
 echo "Done -> en-US-ems.bdic"
